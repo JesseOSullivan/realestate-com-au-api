@@ -160,31 +160,32 @@ class RealestateComAu(Fajita):
             return payload
 
         def parse_items(res):
-            data = res.json()
-            results = (
-                data.get("data", {}).get(f"{channel}Search", {}).get("results", {})
-            )
+            print(res)
+            try:
+                # Print out the response text for debugging
+                print('results')
+                print(res.text)
+                data = res.json()
+                results = (
+                    data.get("data", {}).get(f"{channel}Search", {}).get("results", {})
+                )
+                exact_listings = (results.get("exact", {}) or {}).get("items", [])
+                surrounding_listings = (results.get("surrounding", {}) or {}).get("items", [])
+                listings = [get_listing(listing.get("listing", {}) or {}) for listing in exact_listings + surrounding_listings]
 
-            exact_listings = (results.get("exact", {}) or {}).get("items", [])
-            surrounding_listings = (results.get("surrounding", {}) or {}).get(
-                "items", []
-            )
+                # Filter listings that contain exclude_keywords
+                if exclude_keywords:
+                    pattern = re.compile("|".join(exclude_keywords))
+                    listings = [
+                        listing
+                        for listing in listings
+                        if not re.search(pattern, str(listing.description))
+                    ]
+                return listings
+            except Exception as e:
+                print(f"Error while parsing response: {e}")
+                return []
 
-            listings = [
-                get_listing(listing.get("listing", {}) or {})
-                for listing in exact_listings + surrounding_listings
-            ]
-
-            # filter listings that contain exclude_keywords
-            if exclude_keywords:
-                pattern = re.compile("|".join(exclude_keywords))
-                listings = [
-                    listing
-                    for listing in listings
-                    if not re.search(pattern, str(listing.description))
-                ]
-
-            return listings
 
         def get_current_page(**kwargs):
             current_query_variables = json.loads(kwargs["json"]["variables"]["query"])
